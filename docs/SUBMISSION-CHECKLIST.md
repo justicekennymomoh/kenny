@@ -5,8 +5,8 @@ Based on the challenge resources supplied on 26 Aug 2026.
 ## Required
 
 - [ ] Working hosted project
-- [ ] Public source-code repository
-- [ ] Visible open-source license
+- [x] Public source-code repository
+- [x] Visible open-source license
 - [ ] Project description explaining WebMCP fit and human-agent experience
 - [ ] Demo video under 3 minutes with clear audio
 - [ ] Live URL tested in ChatGPT in-app browser
@@ -23,7 +23,7 @@ Based on the challenge resources supplied on 26 Aug 2026.
 - [x] Document the Chrome WebMCP and manual fallback test paths
 - [x] Final project name is Kenny
 - [x] MIT copyright holder is Justice Kenny Momoh
-- [ ] Add the final GitHub `repository`, `homepage`, and `bugs` metadata after the repository URL exists
+- [x] Add the final GitHub `repository`, `homepage`, and `bugs` metadata after the repository URL exists
 - [ ] Re-check WebMCP spec/API immediately before final submission
 - [ ] Re-check tool security guidance
 - [ ] Run Chrome WebMCP evals

@@ -4,6 +4,14 @@
   "version": "0.2.0",
   "description": "A WebMCP demo of preserving valid workflow progress and selectively recovering from partial failure.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justicekennymomoh/kenny.git"
+  },
+  "homepage": "https://github.com/justicekennymomoh/kenny#readme",
+  "bugs": {
+    "url": "https://github.com/justicekennymomoh/kenny/issues"
+  },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
   },
