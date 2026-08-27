@@ -1,0 +1,17 @@
+{
+  "name": "@recovery/core",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Protocol-independent resumable workflow and selective-recovery core.",
+  "license": "MIT",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

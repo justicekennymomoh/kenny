@@ -1,0 +1,25 @@
+{
+  "name": "kenny",
+  "private": true,
+  "version": "0.2.0",
+  "description": "A WebMCP demo of preserving valid workflow progress and selectively recovering from partial failure.",
+  "license": "MIT",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @recovery/demo",
+    "build": "npm run build --workspace @recovery/demo",
+    "preview": "npm run preview --workspace @recovery/demo",
+    "test": "npm run test --workspace @recovery/core && npm run test --workspace @recovery/webmcp",
+    "test:browser": "playwright test",
+    "typecheck": "npm run typecheck --workspace @recovery/demo && npm run typecheck --workspace @recovery/core && npm run typecheck --workspace @recovery/webmcp"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}
