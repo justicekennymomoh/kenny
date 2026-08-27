@@ -4,6 +4,8 @@ This repository contains a protocol-independent resumable workflow core, a WebMC
 
 > Preserve the good work. Recover the broken part.
 
+Live demo: [https://webmcp-recovery-prototype.vercel.app](https://webmcp-recovery-prototype.vercel.app)
+
 ## The problem
 
 AI agents can perform multi-step actions on websites, but real workflows do not always finish cleanly. If a later step fails, starting over can duplicate side effects, rolling everything back can destroy valid work, and abandoning the workflow leaves the user with a half-finished result.
