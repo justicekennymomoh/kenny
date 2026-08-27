@@ -4,7 +4,7 @@ This repository contains a protocol-independent resumable workflow core, a WebMC
 
 > Preserve the good work. Recover the broken part.
 
-Live demo: [https://kenny-lugardjustice21-6954s-projects.vercel.app](https://kenny-lugardjustice21-6954s-projects.vercel.app)
+Live demo: [https://kenny-webmcp.vercel.app](https://kenny-webmcp.vercel.app)
 
 ## The problem
 
