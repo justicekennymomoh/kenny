@@ -282,6 +282,18 @@ test("discovers and executes the six-tool human-approved recovery flow", async (
 
   const recovery = await executeTool(page, "get_recovery_plan") as {
     available: boolean;
+    resumePoint: string | null;
+    failure: { step: string; error: string } | null;
+    validApprovalExists: boolean;
+    canResume: boolean;
+    steps: Array<{
+      step: string;
+      semantics: string;
+      disposition?: string;
+      allowedRecovery?: string[];
+      requiresHumanApproval: boolean;
+      reason?: string;
+    }>;
     plan: {
       failedStep: string;
       preserve: string[];
@@ -292,6 +304,13 @@ test("discovers and executes the six-tool human-approved recovery flow", async (
   };
   expect(recovery).toMatchObject({
     available: true,
+    resumePoint: "book_orientation",
+    failure: {
+      step: "book_orientation",
+      error: "ORIENTATION_FULL: Monday is fully booked",
+    },
+    validApprovalExists: false,
+    canResume: false,
     plan: {
       failedStep: "book_orientation",
       preserve: ["create_employee", "create_workspace", "assign_figma", "order_laptop"],
@@ -300,6 +319,45 @@ test("discovers and executes the six-tool human-approved recovery flow", async (
       resumePoint: "book_orientation",
     },
   });
+  expect(recovery.steps).toEqual([
+    expect.objectContaining({
+      step: "create_employee",
+      semantics: "REVERSIBLE",
+      disposition: "PRESERVE",
+      requiresHumanApproval: false,
+      reason: "Completed side effect is still valid and does not need replay.",
+    }),
+    expect.objectContaining({
+      step: "create_workspace",
+      semantics: "REVERSIBLE",
+      disposition: "PRESERVE",
+    }),
+    expect.objectContaining({
+      step: "assign_figma",
+      semantics: "REVERSIBLE",
+      disposition: "PRESERVE",
+    }),
+    expect.objectContaining({
+      step: "order_laptop",
+      semantics: "COMPENSATABLE",
+      disposition: "PRESERVE",
+    }),
+    expect.objectContaining({
+      step: "book_orientation",
+      semantics: "COMPENSATABLE",
+      disposition: "RECOVER",
+      allowedRecovery: ["REPLACE_INPUT"],
+      requiresHumanApproval: false,
+      reason: "Original Monday input is unavailable; successful upstream work remains valid.",
+    }),
+    expect.objectContaining({
+      step: "send_welcome_email",
+      semantics: "IRREVERSIBLE",
+      disposition: "BLOCKED",
+      requiresHumanApproval: true,
+      reason: "Irreversible action cannot execute until the current recovery proposal is human-approved.",
+    }),
+  ]);
   await expect(executeTool(page, "search_orientation_slots")).resolves.toEqual({
     available: ["Tuesday", "Wednesday"],
   });
@@ -486,6 +544,18 @@ test("fails closed for unsafe ordering and malformed WebMCP arguments", async ({
   await expect(executeTool(page, "get_recovery_plan")).resolves.toEqual({
     available: false,
     plan: null,
+    steps: [
+      expect.objectContaining({ step: "create_employee", status: "not_started" }),
+      expect.objectContaining({ step: "create_workspace", status: "not_started" }),
+      expect.objectContaining({ step: "assign_figma", status: "not_started" }),
+      expect.objectContaining({ step: "order_laptop", status: "not_started" }),
+      expect.objectContaining({ step: "book_orientation", status: "not_started" }),
+      expect.objectContaining({ step: "send_welcome_email", status: "not_started" }),
+    ],
+    resumePoint: null,
+    failure: null,
+    validApprovalExists: false,
+    canResume: false,
   });
   await expect(executeTool(page, "propose_recovery", { slot: "Tuesday" })).resolves.toEqual({
     proposed: false,

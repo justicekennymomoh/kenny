@@ -8,8 +8,17 @@ import {
   type OrientationSlot,
   type RecoveryProposal,
 } from "./proposals";
+import {
+  approvalMatchesCurrentProposal,
+  buildRecoveryContract,
+  type ApplicationRecoveryContract,
+} from "./recoveryContract";
 import { baseInputs, onboardingSteps, resumable } from "./workflow";
-import { registerDemoTools, serializeDemoMutation } from "./webmcp";
+import {
+  createDemoTools,
+  registerDemoTools,
+  serializeDemoMutation,
+} from "./webmcp";
 import "./styles.css";
 
 const emptyScore: Scoreboard = {
@@ -20,6 +29,22 @@ const emptyScore: Scoreboard = {
   recoveryActionsRun: 0,
   irreversibleActionsGated: 0,
 };
+
+const emptyContract: ApplicationRecoveryContract = {
+  steps: [],
+  resumePoint: null,
+  failure: null,
+  validApprovalExists: false,
+  canResume: false,
+};
+
+const capabilityDefinitions = [
+  { tool: "get_onboarding_state", label: "Inspect state" },
+  { tool: "get_recovery_plan", label: "Inspect recovery plan" },
+  { tool: "search_orientation_slots", label: "Search alternatives" },
+  { tool: "propose_recovery", label: "Propose recovery" },
+  { tool: "resume_onboarding", label: "Resume after authorization" },
+] as const;
 
 const compactStepTitles: Record<string, string> = {
   create_employee: "Employee account",
@@ -72,6 +97,8 @@ export default function App() {
   const [score, setScore] = useState<Scoreboard>(emptyScore);
   const [backend, setBackend] = useState<DemoState>(() => emptyDemoState());
   const [proposal, setProposalState] = useState<RecoveryProposal | null>(null);
+  const [contract, setContract] =
+    useState<ApplicationRecoveryContract>(emptyContract);
   const [webmcp, setWebmcp] = useState<{ available: boolean; registered: string[] }>({
     available: false,
     registered: [],
@@ -91,8 +118,10 @@ export default function App() {
         demoBackend.state(),
         getProposal(),
       ]);
+    const validApproval = await approvalMatchesCurrentProposal(nextProposal);
     setSteps(nextSteps);
     setPlan(nextPlan);
+    setContract(buildRecoveryContract(nextSteps, nextPlan, validApproval));
     setScore(nextScore);
     setBackend(nextBackend);
     setProposalState(nextProposal);
@@ -151,13 +180,25 @@ export default function App() {
       setMessage("There is no failed step to recover yet.");
       return;
     }
-    await setProposal({ id: `proposal_${Date.now()}`, slot, status: "pending" });
+    await setProposal({
+      id: `proposal_${globalThis.crypto.randomUUID()}`,
+      slot,
+      status: "pending",
+    });
     setMessage(`Agent proposed ${slot}. Human approval is required to continue.`);
   });
 
-  const approveProposal = () => serializeDemoMutation(async () => {
+  const approveProposal = (expectedProposalId: string) => serializeDemoMutation(async () => {
     const current = await getProposal();
-    if (!current) return;
+    if (
+      !current ||
+      current.id !== expectedProposalId ||
+      current.status !== "pending"
+    ) {
+      setMessage("Approval blocked: the visible proposal is stale. Review the current proposal.");
+      await refresh();
+      return;
+    }
     const approvalId = await resumable.grantApproval(
       ["send_welcome_email"],
       `Human approved recovery to ${current.slot} and the final welcome email`,
@@ -167,10 +208,18 @@ export default function App() {
     setMessage("Recovery approved. The agent can now resume the workflow.");
   });
 
-  const resume = () => serializeDemoMutation(async () => {
+  const resume = (expectedProposalId: string) => serializeDemoMutation(async () => {
     const current = await getProposal();
-    if (!current || current.status !== "approved" || !current.approvalId) {
-      setMessage("Approve the recovery proposal first.");
+    const approvalValid = await approvalMatchesCurrentProposal(current);
+    if (
+      !current ||
+      current.id !== expectedProposalId ||
+      current.status !== "approved" ||
+      !current.approvalId ||
+      !approvalValid
+    ) {
+      setMessage("Resume blocked: approval is missing, stale, or does not match the current proposal.");
+      await refresh();
       return;
     }
     setBusy(true);
@@ -218,7 +267,19 @@ export default function App() {
   const activityMessage = workflowComplete
     ? "Recovered. Maya’s onboarding completed without repeating valid work."
     : message;
-  const webmcpAgentMode = webmcp.available && webmcp.registered.length === 6;
+  const declaredToolNames = useMemo(
+    () => createDemoTools().map((tool) => tool.name),
+    [],
+  );
+  const toolBoundary = webmcp.available ? webmcp.registered : declaredToolNames;
+  const webmcpAgentMode =
+    webmcp.available &&
+    webmcp.registered.length === declaredToolNames.length &&
+    declaredToolNames.every((name) => webmcp.registered.includes(name));
+  const agentCapabilities = capabilityDefinitions.filter(({ tool }) =>
+    toolBoundary.includes(tool),
+  );
+  const approvalTools = toolBoundary.filter((name) => name.includes("approve"));
 
   return (
     <main
@@ -382,7 +443,7 @@ export default function App() {
                       <div><span className="approval-label">Human decision required</span><strong>Approve the safe recovery plan?</strong></div>
                     </div>
                     <p>Preserve four completed actions, use {proposal.slot}, then release the welcome email.</p>
-                    <button className="button approve full" onClick={() => void approveProposal()}>Approve recovery</button>
+                    <button className="button approve full" onClick={() => void approveProposal(proposal.id)}>Approve recovery</button>
                   </div>
                 )}
 
@@ -394,7 +455,7 @@ export default function App() {
                     ) : (
                       <div className="manual-resume">
                         <strong>Recovery approved</strong><span>Resume from orientation when ready.</span>
-                        <button className="button primary full" onClick={resume} disabled={busy}>Resume safely</button>
+                        <button className="button primary full" onClick={() => void resume(proposal.id)} disabled={busy}>Resume safely</button>
                       </div>
                     )}
                   </div>
@@ -424,6 +485,64 @@ export default function App() {
           </section>
         </aside>
       </div>
+
+      <details className="panel contract-inspector" data-testid="recovery-contract-inspector">
+        <summary>
+          <span><span className="eyebrow">TECHNICAL INSPECTOR</span><strong>Recovery contract</strong></span>
+          <span className="inspector-summary">
+            {contract.resumePoint ? `Resume: ${contract.resumePoint}` : "No active resume point"}
+          </span>
+        </summary>
+
+        <div className="inspector-content">
+          <div className="contract-overview">
+            <div><span>Current failure</span><strong>{contract.failure?.step ?? "None"}</strong></div>
+            <div><span>Valid approval</span><strong>{contract.validApprovalExists ? "Yes" : "No"}</strong></div>
+            <div><span>Agent can resume</span><strong>{contract.canResume ? "Yes" : "No"}</strong></div>
+            <div><span>Resume point</span><strong>{contract.resumePoint ?? "None"}</strong></div>
+          </div>
+
+          <div className="contract-table" role="table" aria-label="Application-declared recovery contract">
+            <div className="contract-row contract-header" role="row">
+              <span role="columnheader">Step</span>
+              <span role="columnheader">Semantics</span>
+              <span role="columnheader">Status</span>
+              <span role="columnheader">Disposition</span>
+              <span role="columnheader">Human approval</span>
+            </div>
+            {contract.steps.map((item) => (
+              <div
+                className="contract-row"
+                role="row"
+                key={item.step}
+                data-testid={`contract-step-${item.step}`}
+                data-disposition={item.disposition ?? "NONE"}
+              >
+                <span role="cell"><code>{item.step}</code>{item.step === contract.resumePoint && <em>Resume point</em>}</span>
+                <span role="cell">{item.semantics}</span>
+                <span role="cell">{item.status}</span>
+                <span role="cell" className={`disposition ${item.disposition?.toLowerCase() ?? "none"}`}>{item.disposition ?? "—"}</span>
+                <span role="cell">{item.requiresHumanApproval ? "Required" : "No"}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="capability-boundary">
+            <div>
+              <span className="eyebrow">AGENT CAPABILITIES</span>
+              <ul>{agentCapabilities.map(({ tool, label }) => <li key={tool}>{label}<code>{tool}</code></li>)}</ul>
+            </div>
+            <div className="human-boundary">
+              <span className="eyebrow">HUMAN-ONLY CAPABILITY</span>
+              <strong>Approve recovery</strong>
+              <p>{approvalTools.length === 0
+                ? "No WebMCP approval tool exists."
+                : `Unexpected approval tools: ${approvalTools.join(", ")}`}</p>
+              <small>{toolBoundary.length} {webmcp.available ? "registered" : "declared"} WebMCP tools</small>
+            </div>
+          </div>
+        </div>
+      </details>
     </main>
   );
 }

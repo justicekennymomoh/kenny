@@ -8,8 +8,12 @@ import {
   getProposal,
   isOrientationSlot,
   setProposal,
-  type RecoveryProposal,
 } from "./proposals";
+import {
+  approvalMatchesCurrentProposal,
+  buildRecoveryContract,
+} from "./recoveryContract";
+import { serializeOnboardingMutation } from "./mutationLock";
 import { baseInputs, resumable, WORKFLOW_ID } from "./workflow";
 
 const emptyInputSchema = {
@@ -18,16 +22,7 @@ const emptyInputSchema = {
   additionalProperties: false,
 } as const;
 
-let mutationQueue: Promise<void> = Promise.resolve();
-
-export function serializeDemoMutation<T>(operation: () => Promise<T>): Promise<T> {
-  const result = mutationQueue.then(operation, operation);
-  mutationQueue = result.then(
-    () => undefined,
-    () => undefined,
-  );
-  return result;
-}
+export const serializeDemoMutation = serializeOnboardingMutation;
 
 function workflowStatus(steps: Awaited<ReturnType<typeof resumable.snapshot>>) {
   if (steps.every((step) => step.status === "not_started")) return "not_started";
@@ -37,33 +32,6 @@ function workflowStatus(steps: Awaited<ReturnType<typeof resumable.snapshot>>) {
   return "paused";
 }
 
-async function approvalMatches(
-  proposal: RecoveryProposal | null,
-): Promise<boolean> {
-  if (!proposal || proposal.status !== "approved" || !proposal.approvalId) return false;
-
-  const plan = await resumable.getRecoveryPlan();
-  if (
-    !plan ||
-    plan.failedStep !== "book_orientation" ||
-    plan.resumePoint !== "book_orientation"
-  ) {
-    return false;
-  }
-
-  const events = await resumable.timeline();
-  return events.some((event) => {
-    if (event.type !== "APPROVAL_GRANTED") return false;
-    const stepIds = event.data?.stepIds;
-    return (
-      event.data?.approvalId === proposal.approvalId &&
-      event.data?.proposalId === proposal.id &&
-      Array.isArray(stepIds) &&
-      stepIds.includes("send_welcome_email")
-    );
-  });
-}
-
 async function currentState() {
   const [steps, plan, backend, proposal] = await Promise.all([
     resumable.snapshot(),
@@ -71,7 +39,7 @@ async function currentState() {
     demoBackend.state(),
     getProposal(),
   ]);
-  const approvalValid = await approvalMatches(proposal);
+  const approvalValid = await approvalMatchesCurrentProposal(proposal);
   const pendingFailure = steps.find((step) => step.status === "failed");
 
   return {
@@ -163,7 +131,7 @@ export function createDemoTools(): WebMcpTool[] {
 
         checkCancellation(signal);
         return { started: true, outcome: "complete", state: await currentState() };
-      }),
+      }, context?.signal),
     },
     {
       name: "get_recovery_plan",
@@ -175,9 +143,15 @@ export function createDemoTools(): WebMcpTool[] {
       execute: async (_input, context) => {
         const signal = context?.signal;
         checkCancellation(signal);
-        const plan = await resumable.getRecoveryPlan();
+        const [plan, steps, proposal] = await Promise.all([
+          resumable.getRecoveryPlan(),
+          resumable.snapshot(),
+          getProposal(),
+        ]);
+        const validApprovalExists = await approvalMatchesCurrentProposal(proposal);
+        const contract = buildRecoveryContract(steps, plan, validApprovalExists);
         checkCancellation(signal);
-        return { available: plan !== null, plan };
+        return { available: plan !== null, plan, ...contract };
       },
     },
     {
@@ -244,7 +218,7 @@ export function createDemoTools(): WebMcpTool[] {
           preserves: plan.preserve,
           resumePointAfterApproval: plan.resumePoint,
         };
-      }),
+      }, context?.signal),
     },
     {
       name: "resume_onboarding",
@@ -256,7 +230,7 @@ export function createDemoTools(): WebMcpTool[] {
         const signal = context?.signal;
         checkCancellation(signal);
         const proposal = await getProposal();
-        const approvalValid = await approvalMatches(proposal);
+        const approvalValid = await approvalMatchesCurrentProposal(proposal);
         checkCancellation(signal);
         if (!proposal || !approvalValid || !proposal.approvalId) {
           return {
@@ -276,7 +250,7 @@ export function createDemoTools(): WebMcpTool[] {
         );
         checkCancellation(signal);
         return { resumed: true, state: await currentState() };
-      }),
+      }, context?.signal),
     },
   ];
 }
