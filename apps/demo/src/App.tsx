@@ -259,6 +259,16 @@ export default function App() {
     () => Object.values(backend.orders).filter((status) => status === "placed").length,
     [backend.orders],
   );
+  const completedActionsRepeated = useMemo(
+    () => steps.reduce(
+      (total, step) => total + Math.max(
+        0,
+        step.attempts - 1 - (step.hadFailure ? 1 : 0),
+      ),
+      0,
+    ),
+    [steps],
+  );
   const booking = Object.values(backend.bookings)[0] ?? "—";
   const workflowComplete = steps.length > 0 && steps.every((step) => step.status === "done");
   const workflowStatus = workflowComplete
@@ -320,9 +330,20 @@ export default function App() {
           <div><span>Agent request</span><strong>“Onboard Maya, our new designer, for Monday.”</strong></div>
           <div className="demo-controls">
             <span className="mode-label">{webmcpAgentMode ? "Agent-driven path active" : "Manual demo control"}</span>
-            <button className="button primary" onClick={runFailureScenario} disabled={busy || !ready || workflowStatus !== "idle"}>
-              Run failure scenario
-            </button>
+            {webmcpAgentMode ? (
+              <details className="manual-test-controls hero-manual-controls">
+                <summary>Manual test controls</summary>
+                <div className="manual-control-body">
+                  <button className="button quiet" onClick={runFailureScenario} disabled={busy || !ready || workflowStatus !== "idle"}>
+                    Run failure scenario
+                  </button>
+                </div>
+              </details>
+            ) : (
+              <button className="button primary" onClick={runFailureScenario} disabled={busy || !ready || workflowStatus !== "idle"}>
+                Run failure scenario
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -430,9 +451,22 @@ export default function App() {
 
                 {!proposal && (
                   <div className="proposal-action">
-                    {webmcpAgentMode && <p>Intended path: ask the connected agent to propose recovery.</p>}
-                    <button className="button secondary full" onClick={() => void createProposal("Tuesday")}>Propose Tuesday recovery</button>
-                    <span>Manual demo control</span>
+                    {webmcpAgentMode ? (
+                      <>
+                        <p>Ask the connected agent to propose a recovery slot.</p>
+                        <details className="manual-test-controls recovery-manual-controls">
+                          <summary>Manual test controls</summary>
+                          <div className="manual-control-body">
+                            <button className="button quiet full" onClick={() => void createProposal("Tuesday")}>Propose Tuesday recovery</button>
+                          </div>
+                        </details>
+                      </>
+                    ) : (
+                      <>
+                        <button className="button secondary full" onClick={() => void createProposal("Tuesday")}>Propose Tuesday recovery</button>
+                        <span>Manual demo control</span>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -451,7 +485,15 @@ export default function App() {
                   <div className="approved-card" role="status">
                     <div className="approved-mark" aria-hidden="true">✓</div>
                     {webmcpAgentMode ? (
-                      <p>Recovery approved. Waiting for the agent to resume the workflow.</p>
+                      <div className="agent-resume-state">
+                        <p>Recovery approved. Waiting for the agent to resume the workflow.</p>
+                        <details className="manual-test-controls recovery-manual-controls">
+                          <summary>Manual test controls</summary>
+                          <div className="manual-control-body">
+                            <button className="button quiet full" onClick={() => void resume(proposal.id)} disabled={busy}>Resume safely</button>
+                          </div>
+                        </details>
+                      </div>
                     ) : (
                       <div className="manual-resume">
                         <strong>Recovery approved</strong><span>Resume from orientation when ready.</span>
@@ -479,8 +521,14 @@ export default function App() {
             </dl>
             <div className="proof-summary" aria-label="Recovery summary">
               <span><strong>{score.actionsPreserved}</strong> valid actions preserved</span>
-              <span><strong>{score.failuresRecovered}</strong> failure recovered</span>
-              <span><strong>0</strong> unnecessary repeats</span>
+              {plan && !workflowComplete ? (
+                <span>Recovery pending</span>
+              ) : workflowComplete ? (
+                <span><strong>{score.failuresRecovered}</strong> failed action recovered</span>
+              ) : (
+                <span>Recovery not started</span>
+              )}
+              <span><strong>{completedActionsRepeated}</strong> completed actions repeated</span>
             </div>
           </section>
         </aside>
@@ -518,11 +566,15 @@ export default function App() {
                 data-testid={`contract-step-${item.step}`}
                 data-disposition={item.disposition ?? "NONE"}
               >
-                <span role="cell"><code>{item.step}</code>{item.step === contract.resumePoint && <em>Resume point</em>}</span>
-                <span role="cell">{item.semantics}</span>
-                <span role="cell">{item.status}</span>
-                <span role="cell" className={`disposition ${item.disposition?.toLowerCase() ?? "none"}`}>{item.disposition ?? "—"}</span>
-                <span role="cell">{item.requiresHumanApproval ? "Required" : "No"}</span>
+                <span role="cell" className="contract-step-name" data-label="Step">
+                  <strong>{item.title}</strong>
+                  <code>{item.step}</code>
+                  {item.step === contract.resumePoint && <em>Resume point</em>}
+                </span>
+                <span role="cell" data-label="Semantics">{item.semantics}</span>
+                <span role="cell" data-label="Status">{item.status}</span>
+                <span role="cell" data-label="Disposition" className={`disposition ${item.disposition?.toLowerCase() ?? "none"}`}>{item.disposition ?? "—"}</span>
+                <span role="cell" data-label="Human approval">{item.requiresHumanApproval ? "Required" : "No"}</span>
               </div>
             ))}
           </div>
@@ -535,7 +587,7 @@ export default function App() {
             <div className="human-boundary">
               <span className="eyebrow">HUMAN-ONLY CAPABILITY</span>
               <strong>Approve recovery</strong>
-              <p>{approvalTools.length === 0
+              <p className="approval-boundary-note">{approvalTools.length === 0
                 ? "No WebMCP approval tool exists."
                 : `Unexpected approval tools: ${approvalTools.join(", ")}`}</p>
               <small>{toolBoundary.length} {webmcp.available ? "registered" : "declared"} WebMCP tools</small>

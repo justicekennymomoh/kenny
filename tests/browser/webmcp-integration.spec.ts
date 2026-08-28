@@ -200,6 +200,40 @@ test("reconstructs exactly six registrations across repeated page mounts", async
   }
 });
 
+test("keeps manual test controls secondary when WebMCP is connected", async ({ page }) => {
+  await installWebMcpTestBrowser(page);
+  await page.goto("/");
+  await expect(page.getByTestId("demo-root")).toHaveAttribute("data-ready", "true");
+  await expect(page.getByTestId("webmcp-status")).toContainText("6 tools connected");
+  await page.getByRole("button", { name: "Reset demo" }).click();
+
+  const heroControls = page.locator(".hero-manual-controls");
+  await expect(heroControls.getByText("Manual test controls", { exact: true })).toBeVisible();
+  await expect(heroControls.getByRole("button", { name: "Run failure scenario" })).toBeHidden();
+  await heroControls.locator("summary").click();
+  await expect(heroControls.getByRole("button", { name: "Run failure scenario" })).toBeVisible();
+  await heroControls.locator("summary").click();
+
+  await executeTool(page, "start_onboarding");
+  const proposalControls = page.locator(".proposal-action .manual-test-controls");
+  await expect(proposalControls.getByText("Manual test controls", { exact: true })).toBeVisible();
+  await expect(proposalControls.getByRole("button", { name: "Propose Tuesday recovery" })).toBeHidden();
+
+  await executeTool(page, "propose_recovery", { slot: "Tuesday" });
+  await expect(page.getByRole("button", { name: "Approve recovery" })).toBeVisible();
+  await page.getByRole("button", { name: "Approve recovery" }).click();
+  await expect.poll(async () => (
+    await executeTool(page, "get_onboarding_state") as { canResume: boolean }
+  ).canResume).toBe(true);
+
+  const resumeControls = page.locator(".approved-card .manual-test-controls");
+  await expect(resumeControls.getByText("Manual test controls", { exact: true })).toBeVisible();
+  await expect(resumeControls.getByRole("button", { name: "Resume safely" })).toBeHidden();
+  await expect(page.getByText(
+    "Recovery approved. Waiting for the agent to resume the workflow.",
+  )).toBeVisible();
+});
+
 test("discovers and executes the six-tool human-approved recovery flow", async ({ page }) => {
   await installWebMcpTestBrowser(page);
   await page.goto("/");
@@ -388,7 +422,7 @@ test("discovers and executes the six-tool human-approved recovery flow", async (
   });
 
   await page.getByRole("button", { name: "Approve recovery" }).click();
-  await expect(page.getByRole("button", { name: "Resume safely" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Resume safely" })).toBeHidden();
   await expect(
     page.getByText("Recovery approved. Waiting for the agent to resume the workflow."),
   ).toBeVisible();

@@ -326,18 +326,20 @@ test("renders the live recovery contract and capability boundary", async ({ page
   const inspector = page.getByTestId("recovery-contract-inspector");
   await inspector.locator("summary").click();
   await expect(inspector.getByRole("row")).toHaveCount(7);
-  await expect(page.getByTestId("contract-step-create_employee")).toHaveAttribute(
-    "data-disposition",
-    "PRESERVE",
-  );
-  await expect(page.getByTestId("contract-step-book_orientation")).toHaveAttribute(
-    "data-disposition",
-    "RECOVER",
-  );
-  await expect(page.getByTestId("contract-step-send_welcome_email")).toHaveAttribute(
-    "data-disposition",
-    "BLOCKED",
-  );
+  for (const expected of [
+    ["create_employee", "Create employee account", "REVERSIBLE", "PRESERVE"],
+    ["create_workspace", "Create workspace account", "REVERSIBLE", "PRESERVE"],
+    ["assign_figma", "Assign Figma licence", "REVERSIBLE", "PRESERVE"],
+    ["order_laptop", "Order laptop", "COMPENSATABLE", "PRESERVE"],
+    ["book_orientation", "Book orientation", "COMPENSATABLE", "RECOVER"],
+    ["send_welcome_email", "Send welcome email", "IRREVERSIBLE", "BLOCKED"],
+  ] as const) {
+    const row = page.getByTestId(`contract-step-${expected[0]}`);
+    await expect(row).toHaveAttribute("data-disposition", expected[3]);
+    await expect(row.getByText(expected[1], { exact: true })).toBeVisible();
+    await expect(row.getByText(expected[2], { exact: true })).toBeVisible();
+    await expect(row.getByText(expected[3], { exact: true })).toBeVisible();
+  }
   await expect(inspector.getByText("No WebMCP approval tool exists.")).toBeVisible();
   await expect(inspector.getByText("6 registered WebMCP tools")).toBeVisible();
   for (const capability of [

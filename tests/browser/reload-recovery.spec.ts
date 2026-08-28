@@ -141,6 +141,8 @@ test("reconstructs paused and completed onboarding without replaying side effect
   await expect(page.getByTestId("webmcp-status")).toContainText(
     "Unavailable — manual demo mode",
   );
+  await expect(page.locator(".hero .manual-test-controls")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Run failure scenario" })).toBeVisible();
 
   await seedUnrelatedBrowserState(page);
   await page.getByRole("button", { name: "Reset demo" }).click();
@@ -192,6 +194,10 @@ test("reconstructs paused and completed onboarding without replaying side effect
     emails: 0,
     orientation: "—",
   });
+  const pausedProof = page.getByLabel("Recovery summary");
+  await expect(pausedProof.getByText("4 valid actions preserved", { exact: true })).toBeVisible();
+  await expect(pausedProof.getByText("Recovery pending", { exact: true })).toBeVisible();
+  await expect(pausedProof.getByText("0 completed actions repeated", { exact: true })).toBeVisible();
 
   await page.reload();
   await expectReady(page);
@@ -229,6 +235,8 @@ test("reconstructs paused and completed onboarding without replaying side effect
   await page.getByRole("button", { name: "Run failure scenario" }).click();
   await expect(step(page, "book_orientation")).toHaveAttribute("data-status", "failed");
 
+  await expect(page.locator(".proposal-action .manual-test-controls")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Propose Tuesday recovery" })).toBeVisible();
   await page.getByRole("button", { name: "Propose Tuesday recovery" }).click();
   await expect(page.getByText("Human decision required")).toBeVisible();
   await page.reload();
@@ -279,6 +287,9 @@ test("reconstructs paused and completed onboarding without replaying side effect
   }
   await expect(page.getByRole("heading", { name: "Recovered" })).toBeVisible();
   await expect(page.getByText("4 valid actions preserved", { exact: true })).toBeVisible();
+  const completedProof = page.getByLabel("Recovery summary");
+  await expect(completedProof.getByText("1 failed action recovered", { exact: true })).toBeVisible();
+  await expect(completedProof.getByText("0 completed actions repeated", { exact: true })).toBeVisible();
   const recoveredPanel = page.getByRole("region", { name: "Recovered" });
   await expect(recoveredPanel.getByText("0", { exact: true })).toBeVisible();
   await expect(
