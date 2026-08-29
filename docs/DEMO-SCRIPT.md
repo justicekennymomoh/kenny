@@ -15,7 +15,7 @@ The live timeline should show:
 ```text
 ✓ Create employee account
 ✓ Create workspace account
-✓ Assign Figma licence
+✓ Assign design software licence
 ✓ Order laptop
 × Book orientation — Monday is fully booked
 ○ Send welcome email
@@ -23,7 +23,7 @@ The live timeline should show:
 
 Voiceover:
 
-> Four real actions already succeeded. Restarting can duplicate them. Rolling everything back destroys valid work.
+> Four valid workflow actions have already succeeded. Restarting can duplicate them. Rolling everything back destroys valid work.
 
 ## Recovery beat
 
@@ -44,7 +44,7 @@ Timeline:
 ```text
 ✓ Create employee account
 ✓ Create workspace account
-✓ Assign Figma licence
+✓ Assign design software licence
 ✓ Order laptop
 ✓ Book orientation — Tuesday
 ✓ Send welcome email

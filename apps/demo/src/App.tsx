@@ -49,7 +49,7 @@ const capabilityDefinitions = [
 const compactStepTitles: Record<string, string> = {
   create_employee: "Employee account",
   create_workspace: "Workspace",
-  assign_figma: "Figma licence",
+  assign_figma: "Design software licence",
   order_laptop: "Laptop order",
   book_orientation: "Book orientation",
   send_welcome_email: "Welcome email",
@@ -514,7 +514,7 @@ export default function App() {
             <dl className="proof-list">
               <div><dt>Employee accounts</dt><dd data-testid="employees-count">{backend.employees.length}</dd></div>
               <div><dt>Workspaces</dt><dd data-testid="workspaces-count">{backend.workspaces.length}</dd></div>
-              <div><dt>Figma licences</dt><dd data-testid="figma-count">{backend.figma.length}</dd></div>
+              <div><dt>Design software licences</dt><dd data-testid="figma-count">{backend.figma.length}</dd></div>
               <div><dt>Laptop orders</dt><dd data-testid="laptops-count">{orderCount}</dd></div>
               <div><dt>Welcome emails</dt><dd data-testid="emails-count">{backend.emails.length}</dd></div>
               <div className="orientation-proof"><dt>Orientation</dt><dd data-testid="orientation-value">{booking}</dd></div>

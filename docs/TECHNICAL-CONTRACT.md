@@ -75,6 +75,23 @@ This does **not** make arbitrary external systems exactly-once by itself. A real
   localStorage, sessionStorage, cookies, unrelated records, or unrelated IndexedDB
   databases.
 
+## Mutation serialization
+
+Start, proposal creation, human approval, resume, and reset use one exclusive,
+origin-wide Web Lock:
+
+```text
+kenny:onboard_maya_v1:mutation
+```
+
+Read-only tools do not acquire the mutation lock. Browsers without Web Locks
+fall back to document-local serialization. Browser tests cover simultaneous
+starts, concurrent proposals, stale-tab approval, resume/proposal races, and
+reset/mutation races across tabs.
+
+This lock is browser-origin coordination. It does not provide distributed,
+cross-device, or cross-profile locking.
+
 ## Recovery-plan output
 
 After Monday orientation fails, the expected plan is conceptually:

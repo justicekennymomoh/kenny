@@ -29,7 +29,7 @@ export const onboardingSteps: StepDef[] = [
   },
   {
     id: "assign_figma",
-    title: "Assign Figma licence",
+    title: "Assign design software licence",
     semantics: "REVERSIBLE",
     run: (args, ctx) => demoBackend.assignFigma(args as { name: string }, ctx),
     inverse: (args) => demoBackend.revokeFigma(args as { name: string }),

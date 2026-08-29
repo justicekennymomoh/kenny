@@ -65,9 +65,42 @@ Start from **Reset demo**, then have the agent use this sequence:
 10. `get_onboarding_state({})` must now report `canResume: true`.
 11. `resume_onboarding({})`.
 12. Confirm `workflowStatus: "complete"`, orientation `Tuesday`, one welcome
-    email, and exactly one employee, workspace, Figma licence, and laptop.
+    email, and exactly one employee, workspace, design software licence, and laptop.
 13. Repeat `start_onboarding({})` and `resume_onboarding({})`; neither may add a
     side effect.
+
+## Scenario proof
+
+The deterministic Maya scenario must finish with:
+
+- 4 valid actions preserved;
+- 1 failed action recovered; and
+- 0 completed actions repeated.
+
+Final side effects:
+
+```text
+employee account = 1
+workspace = 1
+design software licence = 1
+laptop order = 1
+orientation = Tuesday
+welcome email = 1
+```
+
+Exact step attempts:
+
+```text
+create_employee = 1
+create_workspace = 1
+assign_figma = 1
+order_laptop = 1
+book_orientation = 2
+send_welcome_email = 1
+```
+
+This is a reference-scenario invariant, not an exactly-once guarantee for
+arbitrary external systems.
 
 ## Proving the agent cannot self-approve
 
@@ -91,6 +124,11 @@ npm run build
 npm run test:browser
 ```
 
+The current Phase 1.1 working tree was verified on 29 August 2026 with 12
+unit/adapter tests and 17 Playwright browser tests: 29 automated tests in total.
+The browser total comprises 10 WebMCP integration tests, 6 cross-tab safety
+tests, and 1 reload-recovery test.
+
 The browser suite injects a test-only implementation of the current WebMCP
 registration, discovery, schema-validation, and execution shape. This makes the
 adapter flow deterministic in Playwright. The final application does not ship
@@ -100,17 +138,20 @@ available.
 
 Automated adapter coverage is not evidence that a ChatGPT agent selected and
 called the tools. Record real Chrome/Inspector and ChatGPT-agent verification
-separately when those environments are available.
+separately when those environments are available. No ChatGPT in-app-browser
+verification is currently claimed by this repository.
 
 ## Current browser/spec note
 
-On one Windows machine, Chrome 151 stable successfully exposed
+The recorded manual Chrome smoke test on one Windows machine used Chrome 151
+stable, which successfully exposed
 `document.modelContext`, `registerTool()`, `getTools()`, and `executeTool()`, but
 page-initiated `executeTool()` did not provide the documented second
 execution-context argument to the registered executor. Therefore executors
 tolerate an absent context while honoring `AbortSignal` when supplied. This is
-the observed runtime behavior on that installation; it is not a claim about
-every Chrome 151 installation or about agent-initiated execution.
+the observed runtime behavior on that installation. It is separate from the
+injected Playwright suite and is not a claim about every Chrome 151 installation,
+agent-initiated execution, or ChatGPT's in-app browser.
 
 Chrome documents an improved unregistration behavior in Chrome 153 that avoids
 breaking in-flight executions. This implementation does not depend on it: each

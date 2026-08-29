@@ -329,7 +329,7 @@ test("renders the live recovery contract and capability boundary", async ({ page
   for (const expected of [
     ["create_employee", "Create employee account", "REVERSIBLE", "PRESERVE"],
     ["create_workspace", "Create workspace account", "REVERSIBLE", "PRESERVE"],
-    ["assign_figma", "Assign Figma licence", "REVERSIBLE", "PRESERVE"],
+    ["assign_figma", "Assign design software licence", "REVERSIBLE", "PRESERVE"],
     ["order_laptop", "Order laptop", "COMPENSATABLE", "PRESERVE"],
     ["book_orientation", "Book orientation", "COMPENSATABLE", "RECOVER"],
     ["send_welcome_email", "Send welcome email", "IRREVERSIBLE", "BLOCKED"],

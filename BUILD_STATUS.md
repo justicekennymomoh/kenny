@@ -1,18 +1,64 @@
 # Verification status
 
-The implementation includes:
+Verification target: the Phase 1.1 working tree based on commit `ed1ec4d`
+(`Polish recovery experience for production`), including the authorized README,
+documentation, human-visible compliance copy, and matching test-assertion changes.
 
-- six stable, unique tools registered through `document.modelContext.registerTool(...)`;
+Verified on 29 August 2026.
+
+## Current automated results
+
+- `npm test`: passed — 12 tests total (7 recovery-core and 5 WebMCP-adapter).
+- `npm run typecheck`: passed — demo, recovery core, and WebMCP adapter.
+- `npm run build`: passed — Vite production output generated successfully.
+- Playwright browser suite: passed — 17 tests total:
+  - 10 WebMCP integration tests;
+  - 6 cross-tab safety tests; and
+  - 1 reload-recovery test.
+
+**Total: 29 automated tests passed.**
+
+The execution harness interrupted the single all-suite Playwright process
+without reporting a test failure, so the final browser evidence was captured by
+running the same `npm run test:browser` script once for each committed spec file:
+
+```bash
+npm run test:browser -- tests/browser/cross-tab-safety.spec.ts --reporter=line
+npm run test:browser -- tests/browser/webmcp-integration.spec.ts --reporter=line
+npm run test:browser -- tests/browser/reload-recovery.spec.ts --reporter=line
+```
+
+All three invocations exited successfully with 6, 10, and 1 passing tests
+respectively. No product or test configuration was changed to obtain these
+results.
+
+## Verified implementation properties
+
+- six stable, unique tools registered through
+  `document.modelContext.registerTool(...)`;
 - strict object schemas and read-only annotations on the three read-only tools;
 - an append-only journal, deterministic idempotency, and IndexedDB persistence;
-- selective recovery that preserves the four successful setup actions;
-- a visible human approval boundary with no agent approval tool;
+- selective recovery demonstrating 4 valid actions preserved, 1 failed action
+  recovered, and 0 completed actions repeated;
+- a visible human approval boundary with no WebMCP approval tool;
 - fail-closed resume checks for missing, pending, stale, or mismatched approval;
-- cooperative cancellation checks and lifecycle-safe WebMCP registration cleanup;
-- truthful manual fallback behavior when WebMCP is unavailable;
-- automated unit, adapter, browser integration, and reload-recovery coverage.
+- cooperative cancellation checks and lifecycle-safe registration cleanup;
+- origin-wide mutation serialization through Web Locks, with a document-local
+  fallback when Web Locks are unavailable;
+- deterministic coverage of integration, reload, and cross-tab race behaviour;
+  and
+- truthful manual fallback behaviour when WebMCP is unavailable.
 
-The final real-Chrome WebMCP smoke test was completed and approved before the publication-readiness audit. Automated verification should still be rerun from the committed lockfile before every release:
+## Manual browser evidence
+
+Existing repository evidence records a manual Chrome 151 WebMCP smoke test on
+one Windows machine. That check is separate from the injected Playwright suite
+and is not a claim about every Chrome installation or ChatGPT's in-app browser.
+
+No ChatGPT in-app-browser verification is currently claimed.
+
+Before deployment or submission, run the complete clean-install sequence again
+from the committed lockfile:
 
 ```bash
 npm ci
@@ -21,15 +67,3 @@ npm run typecheck
 npm run build
 npm run test:browser
 ```
-
-## Latest release verification
-
-Verified on 2026-08-27 from the intended public source files:
-
-- `npm install --package-lock-only --ignore-scripts`: passed; lockfile metadata regenerated.
-- `npm ci`: passed; 109 packages installed from `package-lock.json`.
-- `npm test`: passed; 12 tests (7 core and 5 adapter).
-- `npm run typecheck`: passed for the demo, core, and adapter.
-- `npm run build`: passed; Vite production output generated successfully.
-- `npm run test:browser`: passed; 10 Playwright tests.
-- `npm audit`: 0 known vulnerabilities.
